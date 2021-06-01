@@ -31,7 +31,7 @@ To upload the firmware you will need to have the [RF24 Arduino Library](https://
 
 You can download the required library using the Libraries manager from within the Arduino IDE. The rest of the used libaries are already included in the firmware folder.
 
-* Open "Headset.ino" in the firmware folder with the arduino IDE.
+* Open "Firmware.ino" in the firmware folder with the arduino IDE.
 * Select "Arduino Leonardo" in the boards menu.
 * plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
 * Click upload and wait for the upload to be done.
