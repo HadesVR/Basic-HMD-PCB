@@ -419,6 +419,18 @@ void setup() {
     {
       Serial.print("Could not connect to AK8963: 0x");
       Serial.println(readByte(AK8963_ADDRESS, AK8963_WHO_AM_I), HEX);
+      while (true) {
+      ledControl(255, 0, 0);
+      delay(200);
+      ledControl(0, 0, 0);
+      delay(200);
+      ledControl(255, 0, 0);
+      delay(200);
+      ledControl(0, 0, 0);
+      delay(200);
+      ledControl(255, 0, 0);
+      delay(1000);
+    }
     }
   }
   else

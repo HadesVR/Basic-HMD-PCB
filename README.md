@@ -32,6 +32,7 @@ To upload the firmware you will need to have the [RF24 Arduino Library](https://
 You can download the required library using the Libraries manager from within the Arduino IDE. The rest of the used libaries are already included in the firmware folder.
 
 * Open "Firmware.ino" in the firmware folder with the arduino IDE.
+* If your LED is Common anode you'll need to comment out the line `#define COMMON_CATHODE`
 * Select "Arduino Leonardo" in the boards menu.
 * plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
 * Click upload and wait for the upload to be done.
@@ -68,4 +69,5 @@ If something's wrong with your board the tracking LED will flash different color
 | ------------- | ----------- |
 | 1 short RED | Magnetic calibration values have not been set! you need to run the magnetic calibration before using this board! |
 | 2 short RED| IMU configuration error / IMU not detected. |
+| 3 short RED| Magnetometer configuration error / Magnetometer not detected. |
 | 1 short GREEN | New magnetic calibration data set, board restart required. |
