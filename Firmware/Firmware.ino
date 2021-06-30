@@ -22,10 +22,10 @@
 //==========================================================================================================
 //************************************ USER CONFIGURABLE STUFF HERE*****************************************
 //==========================================================================================================
-#define COMMON_CATHODE                      //Comment this if your LED is common anode.
+//#define COMMON_CATHODE                      //Comment this if your LED is common anode.
 
 #define MPU9250_ADDRESS     0x68            //ADO 0
-//#define SERIAL_DEBUG
+// #define SERIAL_DEBUG
 #define HID_UPDATE_RATE     10              //send data every 10ms for a 100hz update rate.
 
 const uint64_t rightCtrlPipe = 0xF0F0F0F0E1LL;
@@ -378,9 +378,13 @@ RF24 radio(9, 10); // CE, CSN on Blue Pill
 
 void setup() {
 
-  pinMode(7, OUTPUT);
   pinMode(4, INPUT_PULLUP);
-
+  
+  pinMode(7, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(9, OUTPUT);
+  
   static HIDSubDescriptor node (USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
   HID().AppendDescriptor(&node);
   mRes = getMres();
@@ -493,15 +497,15 @@ void setup() {
 
 void loop() {
 
-  if (digitalRead(4)) {
+  if (!digitalRead(4)) {
     if (!calPressed) {
       calPressed = true;
       cal.ledColor++;
       if (cal.ledColor > 5) {
         cal.ledColor = 0;
       }
-      setColor(cal.ledColor);
       Serial.print("switched color and saved new value");
+      setColor(cal.ledColor);
       EEPROM.put(0, cal);
       delay(5);
     }
@@ -1144,6 +1148,10 @@ float invSqrt(float x) {
   return y;
 }
 
+//////////////////
+///Tracking LED///
+//////////////////
+
 void ledControl(int red, int green, int blue)
 {
 #ifdef COMMON_CATHODE
@@ -1163,9 +1171,9 @@ void ledControl(int red, int green, int blue)
 
   digitalWrite(7, HIGH);
 
-  digitalWrite(5, red);
-  digitalWrite(6, green);
-  digitalWrite(9, blue);
+  digitalWrite(5, redO);
+  digitalWrite(6, greenO);
+  digitalWrite(9, blueO);
 
 #endif
 }
@@ -1195,3 +1203,7 @@ void setColor(int index) {
       break;
   }
 }
+
+///////////////
+///HID STUFF///
+///////////////
