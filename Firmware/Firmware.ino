@@ -424,15 +424,15 @@ void setup() {
       Serial.print("Could not connect to AK8963: 0x");
       Serial.println(readByte(AK8963_ADDRESS, AK8963_WHO_AM_I), HEX);
       while (true) {
-      ledControl(255, 0, 0);
+      setColor(0);
       delay(200);
-      ledControl(0, 0, 0);
+      setColor(6);
       delay(200);
-      ledControl(255, 0, 0);
+      setColor(0);
       delay(200);
-      ledControl(0, 0, 0);
+      setColor(6);
       delay(200);
-      ledControl(255, 0, 0);
+      setColor(0);
       delay(1000);
     }
     }
@@ -442,13 +442,13 @@ void setup() {
     Serial.print("Could not connect to MPU9250: 0x");
     Serial.println(readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250), HEX);
     while (true) {
-      ledControl(255, 0, 0);
+      setColor(0);
       delay(200);
-      ledControl(0, 0, 0);
+      setColor(6);
       delay(200);
-      ledControl(255, 0, 0);
+      setColor(0);
       delay(200);
-      ledControl(0, 0, 0);
+      setColor(6);
       delay(1000);
     }
   }
@@ -459,9 +459,9 @@ void setup() {
 
   calDone = (cal.calDone != 99);                                  //check if calibration values are on flash
   while (calDone) {
-    ledControl(255, 0, 0);
+    setColor(0);
     delay(200);
-    ledControl(0, 0, 0);
+    setColor(6);
     delay(1000);
     Serial.print("Calibration not done!");
     if (!digitalRead(4)) {
@@ -482,9 +482,9 @@ void setup() {
     EEPROM.put(0, cal);
 
     while (true) {
-      ledControl(0, 255, 0);
+      setColor(2);
       delay(200);
-      ledControl(0, 0, 0);
+      setColor(6);
       delay(1000);
     }
   }
@@ -501,10 +501,10 @@ void loop() {
     if (!calPressed) {
       calPressed = true;
       cal.ledColor++;
-      if (cal.ledColor > 5) {
+      if (cal.ledColor > 6) {
         cal.ledColor = 0;
       }
-      Serial.print("switched color and saved new value");
+      Serial.println("switched color and saved new value");
       setColor(cal.ledColor);
       EEPROM.put(0, cal);
       delay(5);
@@ -830,13 +830,17 @@ int updateMPU()
 
     if (tmp > -0.08f && tmp < 0.08f)    //go slower for slower distances to even out the jittery magnetometer output
     {
-      offsetHDG += tmp * 0.01f;
+      offsetHDG += tmp * 0.005f;
     }
     else if (tmp > -0.17f && tmp < 0.17f)
     {
-      offsetHDG += tmp * 0.03f;
+      offsetHDG += tmp * 0.01f;
     }
     else if (tmp > -0.26f && tmp < 0.26f)
+    {
+      offsetHDG += tmp * 0.02f;
+    }
+    else if (tmp > -0.5f && tmp < 0.5f)
     {
       offsetHDG += tmp * 0.08f;
     }
@@ -1163,17 +1167,10 @@ void ledControl(int red, int green, int blue)
 
 #else
 
-  int redO, greenO, blueO;
-
-  redO = map(red, 0, 255, 255, 0);
-  greenO = map(green, 0, 255, 255, 0);
-  blueO = map(blue, 0, 255, 255, 0);
-
   digitalWrite(7, HIGH);
-
-  digitalWrite(5, redO);
-  digitalWrite(6, greenO);
-  digitalWrite(9, blueO);
+  digitalWrite(5, !red);
+  digitalWrite(6, !green);
+  digitalWrite(9, !blue);
 
 #endif
 }
@@ -1181,25 +1178,28 @@ void ledControl(int red, int green, int blue)
 void setColor(int index) {
   switch (index) {
     case 0:
-      ledControl(255, 0, 0);      //red
+      ledControl(1, 0, 0);      //red
       break;
     case 1:
-      ledControl(255, 255, 0);    //yellow
+      ledControl(1, 1, 0);    //yellow
       break;
     case 2:
-      ledControl(0, 255, 0);      //green
+      ledControl(0, 1, 0);      //green
       break;
     case 3:
-      ledControl(0, 255, 255);    //cyan
+      ledControl(0, 1, 1);    //cyan
       break;
     case 4:
-      ledControl(0, 0, 255);      //blue
+      ledControl(0, 0, 1);      //blue
       break;
     case 5:
-      ledControl(255, 0, 255);    //purple?
+      ledControl(1, 0, 1);    //purple?
+      break;
+    case 6:
+      ledControl(0, 0, 0);    //off
       break;
     default:
-      ledControl(255, 0, 0);      //red again
+      ledControl(1, 0, 0);      //red again
       break;
   }
 }
