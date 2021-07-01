@@ -470,7 +470,7 @@ void setup() {
   }
 
   if (!digitalRead(4)) {                                        //enter calibration mode
-    ledControl(0, 0, 255);
+    setColor(4);
     Serial.println("Magnetic calibration mode.");
     delay(1000);
     magcalMPU9250(cal.magBias, cal.magScale);
