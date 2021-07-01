@@ -22,8 +22,24 @@ It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be r
 | 120Ω Resistor | Used to limit the current for the green and blue colors of the LED | 1/4w | 2 |
 | 180Ω Resistor | Used to limit the current for the Red color of the LED | 1/4w | 1 |
 | White ping pong ball | Used to difuse the LED's light for 6dof tracking | Any will do as long as it's white and 40mm in diameter | 1 |
+| 3D printable cup | Holds the tracking ball against the LED and makes it so the light is diffused evenly. | ~~3D printable file not yet ready, sorry!~~ | 1 | 
 
 *Any 3.3v IMU with that same pinout will work if you modify the code to allow for it: A very good replacement for the MPU9250 is the BNO085 which is actually meant to be used for vr applications so it has some built in stabilization.
+
+## Building the board
+
+The board only has a few components, they all go on the top layer and can be soldered in any order though you might find it easier to leave the calibration tact switch for last.
+
+The IMU should be mounted as flat against the board as possible to minimize an offset angle, to do this you will have to remove the black plastic separator from the pin headers:
+
+* Put your IMU an it's pin headers on a breadboard and make sure it's straight
+* Solder the pin headers to the IMU
+* **Carefully** remove the black plastic bit on the pins under the IMU with a box cutter or an exacto knife
+* Solder it to the HMD PCB.
+
+The end result should look something like this:
+
+![4](img/4.png)
 
 ## Uploading the firmware and calibrating the magnetometer.
 
@@ -41,7 +57,8 @@ If all goes well the tracking LED should be flashing RED once every second, mean
 
 To calibrate the magnetometer you can simply press the calibration button on the board until the tracking LED turns blue, once it does you'll need to wave the board in a figure 8 pattern at a medium speed until the tracking LED turns green.
 
-Once the tracking LED has turned green you should unplug the board and plug it back in to reset it, if all goes well you should have a solid green LED as your tracking LED.
+Once the tracking LED has turned green you should unplug the board and plug it back in to reset it, if all goes well you should have a solid color LED as your tracking LED.
+
 
 If you ever need to recalibrate your magnetometer you can do so by holding the calibration button with the board off and then plugging in the board. This will put it into magnetic calibration mode.
 
