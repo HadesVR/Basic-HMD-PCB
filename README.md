@@ -12,8 +12,8 @@ It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be r
 
 | Component | Purpose | Notes | Amount |
 | --------- | ----------- | ----- | ------ |
-| Arduino Pro Micro | Used to interface with PC through HID | **Not** an Arduino nano or a pro mini, those can't do USB HID. | 1 |
-| MPU9250*   | Used to gather rotation data from the headset | The IMU should sit flat against the pcb, this means you'll need to remove the black spacers on the pin headers after soldering them to the IMU. | 1 | 
+| Arduino Pro Micro* | Used to interface with PC through HID | **Not** an Arduino nano or a pro mini, those can't do USB HID. | 1 |
+| MPU9250**   | Used to gather rotation data from the headset | The IMU should sit flat against the pcb, this means you'll need to remove the black spacers on the pin headers after soldering them to the IMU. | 1 | 
 | NRF24L01  | Used to receive wireless data from controllers / trackers | - | 1 | 
 | HT7533 voltage regulator | Used to regulate voltage for the IMU and RF receiver | HT7333 or MCP1700-3302E are also compatible. | 1 |
 | 100nF capacitor | Used to smooth out the input and output regulator voltage. | - | 2 | 
@@ -24,7 +24,9 @@ It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be r
 | White ping pong ball | Used to difuse the LED's light for 6dof tracking | Any will do as long as it's white and 40mm in diameter | 1 |
 | 3D printable cup | Holds the tracking ball against the LED and makes it so the light is diffused evenly. | ~~3D printable file not yet ready, sorry!~~ | 1 | 
 
-*Any 3.3v IMU with that same pinout will work if you modify the code to allow for it: A very good replacement for the MPU9250 is the BNO085 which is actually meant to be used for vr applications so it has some built in stabilization.
+*⚠️*Not* an Arduino Micro either, not only will it not fit, it has a completly different pinout!!!! you need an **Arduino Pro Micro** for this build.
+
+**Any 3.3v IMU with that same pinout will work if you modify the code to allow for it: A very good replacement for the MPU9250 is the BNO085 which is actually meant to be used for vr applications so it has some built in stabilization.
 
 ## Building the board
 
