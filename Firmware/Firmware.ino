@@ -26,7 +26,6 @@
 
 #define MPU9250_ADDRESS     0x68            //ADO 0
 // #define SERIAL_DEBUG
-#define HID_UPDATE_RATE     10              //send data every 10ms for a 100hz update rate.
 
 const uint64_t rightCtrlPipe = 0xF0F0F0F0E1LL;
 const uint64_t leftCtrlPipe = 0xF0F0F0F0D2LL;
@@ -285,9 +284,6 @@ const unsigned char dmp_memory[DMP_CODE_SIZE] PROGMEM = {
 
 #define Mmode 0x06                    // 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
 
-int period = HID_UPDATE_RATE;
-unsigned long TimeNow = 0;
-
 static const uint8_t USB_HID_Descriptor[] PROGMEM = {
 
   0x06, 0x03, 0x00,         // USAGE_PAGE (vendor defined)
@@ -379,12 +375,12 @@ RF24 radio(9, 10); // CE, CSN on Blue Pill
 void setup() {
 
   pinMode(4, INPUT_PULLUP);
-  
+
   pinMode(7, OUTPUT);
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
   pinMode(9, OUTPUT);
-  
+
   static HIDSubDescriptor node (USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
   HID().AppendDescriptor(&node);
   mRes = getMres();
@@ -424,17 +420,17 @@ void setup() {
       Serial.print("Could not connect to AK8963: 0x");
       Serial.println(readByte(AK8963_ADDRESS, AK8963_WHO_AM_I), HEX);
       while (true) {
-      setColor(0);
-      delay(200);
-      setColor(6);
-      delay(200);
-      setColor(0);
-      delay(200);
-      setColor(6);
-      delay(200);
-      setColor(0);
-      delay(1000);
-    }
+        setColor(0);
+        delay(200);
+        setColor(6);
+        delay(200);
+        setColor(0);
+        delay(200);
+        setColor(6);
+        delay(200);
+        setColor(0);
+        delay(1000);
+      }
     }
   }
   else
@@ -528,23 +524,23 @@ void loop() {
     if (pipenum == 1) {
       radio.read(&ContData.Ctrl1_QuatW, 30);        //receive right controller data
       newCtrlData = true;
+      return;
     }
     if (pipenum == 2) {
       radio.read(&ContData.Ctrl2_QuatW, 30);        //receive left controller data
       newCtrlData = true;
+      return;
     }
     if (pipenum == 3) {
-      radio.read(&HMDData.tracker1_QuatW, 27);      //recive all 3 trackers' data
+      radio.read(&HMDData.tracker1_QuatW, 27);
+      return;                                       //recive all 3 trackers' data
     }
   }
 
-  if (millis() > TimeNow + period)
-  {
-    HID().SendReport(1, &HMDData, 63);
-    if (newCtrlData) {
-      HID().SendReport(1, &ContData, 63);
-      newCtrlData = false;
-    }
+  HID().SendReport(1, &HMDData, 63);
+  if (newCtrlData) {
+    HID().SendReport(1, &ContData, 63);
+    newCtrlData = false;
   }
 
 }
