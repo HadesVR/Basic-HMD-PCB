@@ -336,10 +336,13 @@ struct HMDPacket
 struct ControllerPacket
 {
   uint8_t PacketID;
-  float Ctrl1_QuatW;
-  float Ctrl1_QuatX;
-  float Ctrl1_QuatY;
-  float Ctrl1_QuatZ;
+  int16_t Ctrl1_QuatW;
+  int16_t Ctrl1_QuatX;
+  int16_t Ctrl1_QuatY;
+  int16_t Ctrl1_QuatZ;
+  int16_t Ctrl1_AccelX;
+  int16_t Ctrl1_AccelY;
+  int16_t Ctrl1_AccelZ;
   uint32_t Ctrl1_Buttons;
   uint8_t Ctrl1_Trigger;
   int8_t Ctrl1_axisX;
@@ -352,10 +355,13 @@ struct ControllerPacket
   uint8_t Ctrl1_RING;
   uint8_t Ctrl1_PINKY;
 
-  float Ctrl2_QuatW;
-  float Ctrl2_QuatX;
-  float Ctrl2_QuatY;
-  float Ctrl2_QuatZ;
+  int16_t Ctrl2_QuatW;
+  int16_t Ctrl2_QuatX;
+  int16_t Ctrl2_QuatY;
+  int16_t Ctrl2_QuatZ;
+  int16_t Ctrl2_AccelX;
+  int16_t Ctrl2_AccelY;
+  int16_t Ctrl2_AccelZ;
   uint32_t Ctrl2_Buttons;
   uint8_t Ctrl2_Trigger;
   int8_t Ctrl2_axisX;
@@ -526,11 +532,11 @@ void loop() {
 
   if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
     if (pipenum == 1) {
-      radio.read(&ContData.Ctrl1_QuatW, 30);        //receive right controller data
+      radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
       newCtrlData = true;
     }
     if (pipenum == 2) {
-      radio.read(&ContData.Ctrl2_QuatW, 30);        //receive left controller data
+      radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
       newCtrlData = true;
     }
     if (pipenum == 3) {
