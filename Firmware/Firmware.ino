@@ -539,18 +539,15 @@ void loop() {
 
   if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
     if (pipenum == 1) {
-      radio.read(&ContData.Ctrl1_QuatW, 30);        //receive right controller data
+      radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
       newCtrlData = true;
-      return;
-    }
+    } 
     if (pipenum == 2) {
-      radio.read(&ContData.Ctrl2_QuatW, 30);        //receive left controller data
+      radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
       newCtrlData = true;
-      return;
     }
     if (pipenum == 3) {
-      radio.read(&HMDData.tracker1_QuatW, 27);
-      return;                                       //recive all 3 trackers' data
+      radio.read(&HMDData.tracker1_QuatW, 27);      //recive all 3 trackers' data
     }
   }
 
@@ -559,7 +556,6 @@ void loop() {
     HID().SendReport(1, &ContData, 63);
     newCtrlData = false;
   }
-
 }
 
 void initMPU()
