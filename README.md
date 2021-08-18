@@ -43,28 +43,28 @@ The end result should look something like this:
 
 ![4](img/4.png)
 
-## Uploading the firmware and calibrating the magnetometer.
+## Uploading the firmware and calibrating the sensors
 
 To upload the firmware you will need to have the [RF24 Arduino Library](https://github.com/nRF24/RF24) installed in your [Arduino IDE](https://www.arduino.cc/en/software). 
 
 You can download the required library using the Libraries manager from within the Arduino IDE. The rest of the used libaries are already included in the firmware folder.
 
-* Open "Firmware.ino" in the firmware folder with the arduino IDE.
-* If your LED is Common anode you'll need to comment out the line `#define COMMON_CATHODE`
+* Open "Calibration.ino" which is situated inside the Calibration folder inside the firmware folder with the arduino IDE.
 * Select "Arduino Leonardo" in the boards menu.
-* plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
+* Plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
 * Click upload and wait for the upload to be done.
+* Open the serial monitor and follow the instructions in it, you'll calibrate the accelerometer and gyroscope biases at this point so make sure the IMU is sitting flat against the table or floor and is not moving at all.
+* Once done you'll calibrate the magnetometer, to do this, you should wave the board in a figure 8 pattern away from any electronics.
+* When it's done calibrating the magnetometer the calibration values will be saved to eeprom and you're done with calibration.
+* If you need to recalibrate the acccelerometers or gyroscopes simply restart the board and open up the serial monitor again.
 
-If all goes well the tracking LED should be flashing RED once every second, meaning the magnetometer hasn't been calibrated.
-
-To calibrate the magnetometer you can simply press the calibration button on the board until the tracking LED turns blue, once it does you'll need to wave the board in a figure 8 pattern at a medium speed until the tracking LED turns green.
-
-Once the tracking LED has turned green you should unplug the board and plug it back in to reset it, if all goes well you should have a solid color LED as your tracking LED.
-
+Once you're done calibrating all sensors you can upload Firmware.ino to the board. if your LED is Common cathode you'll need to uncomment `#define COMMON_CATHODE` for it to work, if it's Common anode you won't need to change anything.
 
 If you ever need to recalibrate your magnetometer you can do so by holding the calibration button with the board off and then plugging in the board. This will put it into magnetic calibration mode.
 
-After calibrating the magnetometer you can press the button to change the tracking color it's recomended you either use green blue or red.
+However if your view is crooked or too drifty you might need to calibrate your accelerometer and gyroscope again, to do that you'll need to upload the calibration code to the board and repeat all steps.
+
+Once you have the firmware.ino sketch uploaded to the board and you've done all calibration procedures you can press the button to change the tracking color of the ball. I recomended you either use green blue or red.
 
 ## Getting HID values
 
