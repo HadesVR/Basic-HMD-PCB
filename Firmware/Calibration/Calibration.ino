@@ -1,39 +1,14 @@
-/*
-  Copyright 2021 HadesVR
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"),
-  to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-  and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,INCLUDING BUT NOT LIMITED TO
-  THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
 #include <Wire.h>
-#include <SPI.h>
 #include <EEPROM.h>
-#include "RF24.h"
 #include "RegisterMap.h"
-#include "HID.h"
 
-//==========================================================================================================
-//************************************ USER CONFIGURABLE STUFF HERE*****************************************
-//==========================================================================================================
+#define MPU9250_ADDRESS 0x68  //ADO 0
 
-#define MPU9250_ADDRESS     0x68            //ADO 0
-//#define COMMON_CATHODE                    //uncomment this if your LED is common cathode
-//#define SERIAL_DEBUG                      //uncomment this to unleash the wrath of the serial port
+#define RED 5
+#define GRN 6
+#define BLU 9
 
-//==========================================================================================================
-
-const uint64_t rightCtrlPipe = 0xF0F0F0F0E1LL;
-const uint64_t leftCtrlPipe = 0xF0F0F0F0D2LL;
-const uint64_t trackerPipe = 0xF0F0F0F0C3LL;
-
-#define CALPIN              4               
+float magCalibration[3]; // factory mag calibration
 
 struct Calibration {
   int calDone;
@@ -41,11 +16,9 @@ struct Calibration {
   float magScale[3]; // Bias corrections for mag
   float gyroBias[3]; // bias corrections
   float accelBias[3]; // bias corrections
-  int ledColor;       //stored led color
 };
 
 Calibration cal;
-float magCalibration[3]; // factory mag calibration
 
 static float ax, ay, az, gx, gy, gz, mx, my, mz;
 
@@ -62,153 +35,27 @@ GFS GFSSEL = GFS::G2000DPS;
 MFS MFSSEL = MFS::M16BITS;
 #define Mmode 0x06                    // 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
 
-static const uint8_t USB_HID_Descriptor[] PROGMEM = {
-
-  0x06, 0x03, 0x00,         // USAGE_PAGE (vendor defined)
-  0x09, 0x00,         // USAGE (Undefined)
-  0xa1, 0x01,         // COLLECTION (Application)
-  0x15, 0x00,         //   LOGICAL_MINIMUM (0)
-  0x26, 0xff, 0x00,   //   LOGICAL_MAXIMUM (255)
-  0x85, 0x01,         //   REPORT_ID (1)
-  0x75, 0x08,         //   REPORT_SIZE (16)
-
-  0x95, 0x3f,         //   REPORT_COUNT (1)
-
-  0x09, 0x00,         //   USAGE (Undefined)
-  0x81, 0x02,         //   INPUT (Data,Var,Abs) - to the host
-  0xc0
-};
-
-struct HMDRAWPacket
-{
-  uint8_t  PacketID;
-
-  int16_t AccX;
-  int16_t AccY;
-  int16_t AccZ;
-
-  int16_t GyroX;
-  int16_t GyroY;
-  int16_t GyroZ;
-
-  int16_t MagX;
-  int16_t MagY;
-  int16_t MagZ;
-
-  uint16_t HMDData;
-
-  int16_t tracker1_QuatW;
-  int16_t tracker1_QuatX;
-  int16_t tracker1_QuatY;
-  int16_t tracker1_QuatZ;
-  uint8_t tracker1_vBat;
-  uint8_t tracker1_data;
-
-  int16_t tracker2_QuatW;
-  int16_t tracker2_QuatX;
-  int16_t tracker2_QuatY;
-  int16_t tracker2_QuatZ;
-  uint8_t tracker2_vBat;
-  uint8_t tracker2_data;
-
-  int16_t tracker3_QuatW;
-  int16_t tracker3_QuatX;
-  int16_t tracker3_QuatY;
-  int16_t tracker3_QuatZ;
-  uint8_t tracker3_vBat;
-  uint8_t tracker3_data;
-
-};
-struct ControllerPacket
-{
-  uint8_t PacketID;
-  int16_t Ctrl1_QuatW;
-  int16_t Ctrl1_QuatX;
-  int16_t Ctrl1_QuatY;
-  int16_t Ctrl1_QuatZ;
-  int16_t Ctrl1_AccelX;
-  int16_t Ctrl1_AccelY;
-  int16_t Ctrl1_AccelZ;
-  uint16_t Ctrl1_Buttons;
-  uint8_t Ctrl1_Trigger;
-  int8_t Ctrl1_axisX;
-  int8_t Ctrl1_axisY;
-  int8_t Ctrl1_trackY;
-  uint8_t Ctrl1_vBat;
-  uint8_t Ctrl1_THUMB;
-  uint8_t Ctrl1_INDEX;
-  uint8_t Ctrl1_MIDDLE;
-  uint8_t Ctrl1_RING;
-  uint8_t Ctrl1_PINKY;
-  uint16_t Ctrl1_Data;
-
-  int16_t Ctrl2_QuatW;
-  int16_t Ctrl2_QuatX;
-  int16_t Ctrl2_QuatY;
-  int16_t Ctrl2_QuatZ;
-  int16_t Ctrl2_AccelX;
-  int16_t Ctrl2_AccelY;
-  int16_t Ctrl2_AccelZ;
-  uint16_t Ctrl2_Buttons;
-  uint8_t Ctrl2_Trigger;
-  int8_t Ctrl2_axisX;
-  int8_t Ctrl2_axisY;
-  int8_t Ctrl2_trackY;
-  uint8_t Ctrl2_vBat;
-  uint8_t Ctrl2_THUMB;
-  uint8_t Ctrl2_INDEX;
-  uint8_t Ctrl2_MIDDLE;
-  uint8_t Ctrl2_RING;
-  uint8_t Ctrl2_PINKY;
-  uint16_t Ctrl2_Data;
-};
-
-
-static HMDRAWPacket HMDRawData;
-static ControllerPacket ContData;
-
-bool newCtrlData = false;
-bool calDone;
-bool calPressed = false;
-
-RF24 radio(9, 10); // CE, CSN on Blue Pill
-
 void setup() {
 
-  pinMode(CALPIN, INPUT_PULLUP);
-
   pinMode(7, OUTPUT);
-  pinMode(5, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(9, OUTPUT);
+  pinMode(RED, OUTPUT);
+  pinMode(GRN, OUTPUT);
+  pinMode(BLU, OUTPUT);
 
-
-  static HIDSubDescriptor node (USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
-  HID().AppendDescriptor(&node);
+  digitalWrite(7,HIGH);
+  digitalWrite(RED,HIGH);
+  digitalWrite(GRN,HIGH);
+  digitalWrite(BLU,HIGH);
+  
+  Serial.begin(115200);
+  while (!Serial) {
+    ;
+  }
+  Wire.begin();
 
   aRes = getAres();
   gRes = getGres();
   mRes = getMres();
-
-
-#ifdef SERIAL_DEBUG
-  Serial.begin(38400);
-  while (!Serial) {
-    ;
-  }
-#endif
-
-  radio.begin();
-  radio.setPayloadSize(40);
-  radio.openReadingPipe(3, trackerPipe);
-  radio.openReadingPipe(2, leftCtrlPipe);
-  radio.openReadingPipe(1, rightCtrlPipe);
-  radio.setAutoAck(false);
-  radio.setDataRate(RF24_1MBPS);
-  radio.setPALevel(RF24_PA_LOW);
-  radio.startListening();
-
-  Wire.begin();
 
   if (readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250) == MPU9250_WHOAMI_DEFAULT_VALUE)
   {
@@ -225,132 +72,47 @@ void setup() {
     {
       Serial.print("Could not connect to AK8963: 0x");
       Serial.println(readByte(AK8963_ADDRESS, AK8963_WHO_AM_I), HEX);
-      while (true) {
-        setColor(0);
-        delay(200);
-        setColor(6);
-        delay(200);
-        setColor(0);
-        delay(200);
-        setColor(6);
-        delay(200);
-        setColor(0);
-        delay(1000);
-      }
     }
   }
   else
   {
     Serial.print("Could not connect to MPU9250: 0x");
     Serial.println(readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250), HEX);
-    while (true) {
-      setColor(0);
-      delay(200);
-      setColor(6);
-      delay(200);
-      setColor(0);
-      delay(200);
-      setColor(6);
-      delay(1000);
-    }
-  }
-  Serial.println("Loading calibration values from program memory");
-  EEPROM.get(0, cal);
-
-  calDone = (cal.calDone != 99);                                  //check if calibration values are on flash
-  while (calDone) {
-    Serial.print("Calibration not done!");
-    setColor(0);
-    delay(200);
-    setColor(6);
-    delay(1000);
-  }
-
-  if (!digitalRead(CALPIN)) {
-    setColor(4);                                  //enter calibration mode
-    Serial.println("Magnetic calibration mode.");
-    delay(1000);
-    magcalMPU9250(cal.magBias, cal.magScale);
-
-    Serial.print("magBias: "); Serial.print(cal.magBias[0], 7); Serial.print(","); Serial.print(cal.magBias[1], 7); Serial.print(","); Serial.println(cal.magBias[2], 7);
-    Serial.print("magScale: "); Serial.print(cal.magScale[0], 7); Serial.print(","); Serial.print(cal.magScale[1], 7); Serial.print(","); Serial.println(cal.magScale[2], 7);
-
-    Serial.println("Writting calibration values to EEPROM!");
-    cal.calDone = 99;
-    EEPROM.put(0, cal);
-    setColor(2);
-    delay(2000); 
   }
 
 
+  Serial.println("Entered calibration mode!");
 
-  setColor(cal.ledColor);
+  delay(1000);
+  Serial.println("Lay IMU on flat surface.");
+  digitalWrite(RED,LOW);
+  delay(10000);
+  calibrateMPU9250(cal.gyroBias, cal.accelBias);
+  digitalWrite(RED,HIGH);
+  digitalWrite(GRN,LOW);
+  Serial.println("Magnetic calibration mode.");
+  delay(1000);
+  digitalWrite(BLU,LOW);
+  digitalWrite(GRN,HIGH);
+  magcalMPU9250(cal.magBias, cal.magScale);
 
-  HMDRawData.PacketID = 3;
-  ContData.PacketID = 2;
+  Serial.println("Writting calibration values to EEPROM!");
+  cal.calDone = 99;
+  EEPROM.put(0, cal);
+  delay(3000);
+  digitalWrite(BLU,HIGH);
+  digitalWrite(GRN,LOW);
+
+  Serial.print("magBias: "); Serial.print(cal.magBias[0], 7); Serial.print(","); Serial.print(cal.magBias[1], 7); Serial.print(","); Serial.println(cal.magBias[2], 7);
+  Serial.print("magScale: "); Serial.print(cal.magScale[0], 7); Serial.print(","); Serial.print(cal.magScale[1], 7); Serial.print(","); Serial.println(cal.magScale[2], 7);
+  Serial.print("GyroBias: "); Serial.print(cal.gyroBias[0], 7); Serial.print(","); Serial.print(cal.gyroBias[1], 7); Serial.print(","); Serial.println(cal.gyroBias[2], 7);
+  Serial.print("AccleBias: "); Serial.print(cal.accelBias[0], 7); Serial.print(","); Serial.print(cal.accelBias[1], 7); Serial.print(","); Serial.println(cal.accelBias[2], 7);
+
 }
+
 
 void loop() {
 
-  if (!digitalRead(4)) {
-    if (!calPressed) {
-      calPressed = true;
-      cal.ledColor++;
-      if (cal.ledColor > 6) {
-        cal.ledColor = 0;
-      }
-      Serial.println("switched color and saved new value");
-      setColor(cal.ledColor);
-      EEPROM.put(0, cal);
-      delay(5);
-    }
-  }
-  else {
-    calPressed = false;
-  }
-
-  uint8_t pipenum;
-  updateMag();
-  if (dataAvailable()) {
-    updateAccelGyro();
-  }
-
-  HMDRawData.AccX = (short)(ax * 2048);
-  HMDRawData.AccY = (short)(ay * 2048);
-  HMDRawData.AccZ = (short)(az * 2048);
-
-  HMDRawData.GyroX = (short)(gx * 16);
-  HMDRawData.GyroY = (short)(gy * 16);
-  HMDRawData.GyroZ = (short)(gz * 16);
-
-  HMDRawData.MagX = (short)(mx * 5);
-  HMDRawData.MagY = (short)(my * 5);
-  HMDRawData.MagZ = (short)(mz * 5);
-
-  Serial.print("ax: ");
-  Serial.println(ax);
-
-  HID().SendReport(1, &HMDRawData, 63);
-
-  if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
-    if (pipenum == 1) {
-      radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
-      newCtrlData = true;
-    }
-    if (pipenum == 2) {
-      radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
-      newCtrlData = true;
-    }
-    if (pipenum == 3) {
-      radio.read(&HMDRawData.tracker1_QuatW, 27);      //recive all 3 trackers' data
-    }
-  }
-
-
-  if (newCtrlData) {
-    HID().SendReport(1, &ContData, 63);
-    newCtrlData = false;
-  }
 }
 
 void initMPU()
@@ -372,7 +134,7 @@ void initMPU()
   writeByte(MPU9250_ADDRESS, MPU_CONFIG, 0x03);
 
   // Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
-  writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x00);  // Use a 200 Hz rate; a rate consistent with the filter update rate
+  writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x04);  // Use a 200 Hz rate; a rate consistent with the filter update rate
   // determined inset in CONFIG above
 
   // Set gyroscope full scale range
@@ -441,32 +203,6 @@ void initAK8963(float * destination)
   //  Serial.print("Z-Axis sensitivity offset value "); Serial.println(cal.magBias[2], 2);
 }
 
-void updateAccelGyro()
-{
-  int16_t MPU9250Data[7];                                       // used to read all 14 bytes at once from the MPU9250 accel/gyro
-  uint8_t rawData[14];                                          // x/y/z accel register data stored here
-
-  readBytes(MPU9250_ADDRESS, ACCEL_XOUT_H, 14, &rawData[0]);    // Read the 14 raw data registers into data array
-
-  MPU9250Data[0] = ((int16_t)rawData[0] << 8) | rawData[1] ;    // Turn the MSB and LSB into a signed 16-bit value
-  MPU9250Data[1] = ((int16_t)rawData[2] << 8) | rawData[3] ;
-  MPU9250Data[2] = ((int16_t)rawData[4] << 8) | rawData[5] ;
-  MPU9250Data[3] = ((int16_t)rawData[6] << 8) | rawData[7] ;
-  MPU9250Data[4] = ((int16_t)rawData[8] << 8) | rawData[9] ;
-  MPU9250Data[5] = ((int16_t)rawData[10] << 8) | rawData[11] ;
-  MPU9250Data[6] = ((int16_t)rawData[12] << 8) | rawData[13] ;
-
-  // Now we'll calculate the accleration value into actual g's
-  ax = (float)MPU9250Data[0] * aRes - cal.accelBias[0];              // get actual g value, this depends on scale being set
-  ay = (float)MPU9250Data[1] * aRes - cal.accelBias[1];
-  az = (float)MPU9250Data[2] * aRes - cal.accelBias[2];
-
-  // Calculate the gyro value into actual degrees per second
-  gx = (float)MPU9250Data[4] * gRes - cal.gyroBias[0];               // get actual gyro value, this depends on scale being set
-  gy = (float)MPU9250Data[5] * gRes - cal.gyroBias[1];
-  gz = (float)MPU9250Data[6] * gRes - cal.gyroBias[2];
-}
-
 void updateMag()
 {
   if (readByte(AK8963_ADDRESS, AK8963_ST1) & 0x01) {             // wait for magnetometer data ready bit to be set
@@ -484,15 +220,14 @@ void updateMag()
     // Calculate the magnetometer values in milliGauss
     // Include factory calibration per data sheet and user environmental corrections
 
-    // Apply mag soft iron error compensation
     mx = (float)(magCount[0] * mRes * magCalibration[0] - cal.magBias[0]) * cal.magScale[0];  // get actual magnetometer value, this depends on scale being set
     my = (float)(magCount[1] * mRes * magCalibration[1] - cal.magBias[1]) * cal.magScale[1];
     mz = (float)(magCount[2] * mRes * magCalibration[2] - cal.magBias[2]) * cal.magScale[2];
-  }
-  else {
-    mx = 0;
-    my = 0;
-    mz = 0;
+    //
+    //    // Apply mag soft iron error compensation
+    //    mx = x * cal.mag_softiron_matrix[0][0] + y * cal.mag_softiron_matrix[0][1] + z * cal.mag_softiron_matrix[0][2];
+    //    my = x * cal.mag_softiron_matrix[1][0] + y * cal.mag_softiron_matrix[1][1] + z * cal.mag_softiron_matrix[1][2];
+    //    mz = x * cal.mag_softiron_matrix[2][0] + y * cal.mag_softiron_matrix[2][1] + z * cal.mag_softiron_matrix[2][2];
   }
 }
 
@@ -685,16 +420,16 @@ void calibrateMPU9250(float * dest1, float * dest2)
   dest2[1] = (float)accel_bias[1] / (float)accelsensitivity;
   dest2[2] = (float)accel_bias[2] / (float)accelsensitivity;
 
-  Serial.println("MPU9250 bias");
-  Serial.println(" x   y   z  ");
-  Serial.print((int)(1000 * cal.accelBias[0])); Serial.print(" ");
-  Serial.print((int)(1000 * cal.accelBias[1])); Serial.print(" ");
-  Serial.print((int)(1000 * cal.accelBias[2])); Serial.print(" ");
-  Serial.println("mg");
-  Serial.print(cal.gyroBias[0], 1); Serial.print(" ");
-  Serial.print(cal.gyroBias[1], 1); Serial.print(" ");
-  Serial.print(cal.gyroBias[2], 1); Serial.print(" ");
-  Serial.println("o/s");
+  //  Serial.println("MPU9250 bias");
+  //  Serial.println(" x   y   z  ");
+  //  Serial.print((int)(1000 * cal.accelBias[0])); Serial.print(" ");
+  //  Serial.print((int)(1000 * cal.accelBias[1])); Serial.print(" ");
+  //  Serial.print((int)(1000 * cal.accelBias[2])); Serial.print(" ");
+  //  Serial.println("mg");
+  //  Serial.print(cal.gyroBias[0], 1); Serial.print(" ");
+  //  Serial.print(cal.gyroBias[1], 1); Serial.print(" ");
+  //  Serial.print(cal.gyroBias[2], 1); Serial.print(" ");
+  //  Serial.println("o/s");
 
   delay(100);
 
@@ -736,10 +471,10 @@ void magcalMPU9250(float * dest1, float * dest2)
     if (Mmode == 0x02) delay(135); // at 8 Hz ODR, new mag data is available every 125 ms
     if (Mmode == 0x06) delay(12); // at 100 Hz ODR, new mag data is available every 10 ms
   }
-
-  Serial.println("mag x min/max:"); Serial.println(mag_max[0]); Serial.println(mag_min[0]);
-  Serial.println("mag y min/max:"); Serial.println(mag_max[1]); Serial.println(mag_min[1]);
-  Serial.println("mag z min/max:"); Serial.println(mag_max[2]); Serial.println(mag_min[2]);
+  //
+  //  Serial.println("mag x min/max:"); Serial.println(mag_max[0]); Serial.println(mag_min[0]);
+  //  Serial.println("mag y min/max:"); Serial.println(mag_max[1]); Serial.println(mag_min[1]);
+  //  Serial.println("mag z min/max:"); Serial.println(mag_max[2]); Serial.println(mag_min[2]);
 
   // Get hard iron correction
   mag_bias[0]  = (mag_max[0] + mag_min[0]) / 2; // get average x mag bias in counts
@@ -764,14 +499,14 @@ void magcalMPU9250(float * dest1, float * dest2)
 
   Serial.println("Mag Calibration done!");
 
-  Serial.println("AK8963 mag biases (mG)");
-  Serial.print(cal.magBias[0]); Serial.print(", ");
-  Serial.print(cal.magBias[1]); Serial.print(", ");
-  Serial.print(cal.magBias[2]); Serial.println();
-  Serial.println("AK8963 mag scale (mG)");
-  Serial.print(cal.magScale[0]); Serial.print(", ");
-  Serial.print(cal.magScale[1]); Serial.print(", ");
-  Serial.print(cal.magScale[2]); Serial.println();
+  //  Serial.println("AK8963 mag biases (mG)");
+  //  Serial.print(cal.magBias[0]); Serial.print(", ");
+  //  Serial.print(cal.magBias[1]); Serial.print(", ");
+  //  Serial.print(cal.magBias[2]); Serial.println();
+  //  Serial.println("AK8963 mag scale (mG)");
+  //  Serial.print(cal.magScale[0]); Serial.print(", ");
+  //  Serial.print(cal.magScale[1]); Serial.print(", ");
+  //  Serial.print(cal.magScale[2]); Serial.println();
 }
 
 
@@ -809,56 +544,4 @@ void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * des
   while (Wire.available()) {
     dest[i++] = Wire.read();
   }         // Put read results in the Rx buffer
-}
-
-//////////////////
-///Tracking LED///
-//////////////////
-
-void ledControl(int red, int green, int blue)
-{
-#ifdef COMMON_CATHODE
-
-  digitalWrite(7, LOW);
-  digitalWrite(5, red);
-  digitalWrite(6, green);
-  digitalWrite(9, blue);
-
-#else
-
-  digitalWrite(7, HIGH);
-  digitalWrite(5, !red);
-  digitalWrite(6, !green);
-  digitalWrite(9, !blue);
-
-#endif
-}
-
-void setColor(int index) {
-  switch (index) {
-    case 0:
-      ledControl(1, 0, 0);      //red
-      break;
-    case 1:
-      ledControl(1, 1, 0);    //yellow
-      break;
-    case 2:
-      ledControl(0, 1, 0);      //green
-      break;
-    case 3:
-      ledControl(0, 1, 1);    //cyan
-      break;
-    case 4:
-      ledControl(0, 0, 1);      //blue
-      break;
-    case 5:
-      ledControl(1, 0, 1);    //purple?
-      break;
-    case 6:
-      ledControl(0, 0, 0);    //off
-      break;
-    default:
-      ledControl(1, 0, 0);      //red again
-      break;
-  }
 }
