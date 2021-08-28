@@ -8,7 +8,7 @@ It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be r
 
 You can get the HMD boards made professionally on [PCBWay](https://www.pcbway.com/) for just 5$ + shipping since the board design conforms to their 5$ deal for a 100mmx100mm board. And you can even get a 5$ off bonus if you're signing up for the first time which means you'd only be paying for shipping. 
 
-You can also get HMD + Controller boards for around 21$ (or $16 with the new user bonus) + shipping if you plan on building the HMD and the [Wand controllers](https://github.com/HadesVR/Wand-Controller). All board files are available in the Files/gerbers folder of this project and the Wand controllers project.
+You can also get HMD + Controller boards in one order if you plan on building the HMD and the [Wand controllers](https://github.com/HadesVR/Wand-Controller). Those board files are on the Wand controller repo.
 
 ![1](img/1.png)
 
