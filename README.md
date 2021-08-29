@@ -6,9 +6,9 @@ The PCB addds support for all the electronics required to connect to a PC, get r
 
 It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be replaced by something like a BNO085 for better results if you're feeling like modifying the code a little), and an NRF24L01 to receive data from controllers and trackers. It also has hardware support for an RGB LED to use with a ping pong ball for 6dof tracking using PSMoveService.
 
-You can get the HMD boards made professionally on [PCBWay](https://www.pcbway.com/) for just 5$ + shipping since the board design conforms to their 5$ deal for a 100mmx100mm board. And you can even get a 5$ off bonus if you're signing up for the first time which means you'd only be paying for shipping. 
+You can get the HMD boards made professionally on [PCBWay](https://www.pcbway.com/setinvite.aspx?inviteid=398979) for just 5$ + shipping since the board design conforms to their 5$ deal for a 100mmx100mm board. And you can even get a 5$ off bonus if you're signing up for the first time which means you'd only be paying for shipping. 
 
-You can also get HMD + Controller boards in one order if you plan on building the HMD and the [Wand controllers](https://github.com/HadesVR/Wand-Controller). Those board files are on the Wand controller repo.
+You can also get HMD + Controller boards in one order for $27 (or $22 with the new user bonus) + shipping if you plan on building the HMD and the [Wand controllers](https://github.com/HadesVR/Wand-Controller). Those board files are on the Wand controller repo.
 
 ![1](img/1.png)
 
