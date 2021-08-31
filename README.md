@@ -1,6 +1,6 @@
 # HadesVR Basic HMD 
 
-The HadesVR Basic HMD is a PCB that helps you convert any "Phone VR" headset into a PC VR headset. It's included with the [Wand controller pcbs](TODO:ADD_LINK) as a kit to get you started or you can have it made on its own with the included gerber files.
+The HadesVR Basic HMD is a PCB that helps you convert any "Phone VR" headset into a PC VR headset. It's included with the [Wand controller pcbs](https://github.com/HadesVR/Wand-Controller) as a kit to get you started or you can have it made on its own with the included gerber files.
 
 The PCB addds support for all the electronics required to connect to a PC, get rotation data from the headset and get controller and tracker data wirelessly in a 100x35mm board with no SMD components.
 
@@ -32,6 +32,8 @@ You can also get HMD + Controller boards in one order for $27 (or $22 with the n
 
 **Any 3.3v IMU with that same pinout will work if you modify the code to allow for it: A very good replacement for the MPU9250 is the BNO085 which is actually meant to be used for vr applications so it has some built in stabilization.
 
+##### TODO: Add support for MPU6050
+
 ## Building the board
 
 The board only has a few components, they all go on the top layer and can be soldered in any order though you might find it easier to leave the calibration tact switch for last.
@@ -57,8 +59,8 @@ You can download the required library using the Libraries manager from within th
 * Select "Arduino Leonardo" in the boards menu.
 * Plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
 * Click upload and wait for the upload to be done.
-* Open the serial monitor and follow the instructions in it, you'll calibrate the accelerometer and gyroscope biases at this point so make sure the IMU is sitting flat against the table or floor and is not moving at all.
-* Once done you'll calibrate the magnetometer, to do this, you should wave the board in a figure 8 pattern away from any electronics.
+* Open the serial monitor and follow the instructions in it, you'll calibrate the accelerometer and gyroscope biases at this point so make sure the IMU is sitting flat against the table or anything that's completly paralell to the floor and is not moving at all.
+* Once done you'll calibrate the magnetometer, to do this, you should wave the board in a figure 8 pattern away from any electronics preferrably in the middle of your play area but anywhere a few feet away from any electronics will work fine.
 * When it's done calibrating the magnetometer the calibration values will be saved to eeprom and you're done with calibration.
 * If you need to recalibrate the acccelerometers or gyroscopes simply restart the board and open up the serial monitor again.
 
