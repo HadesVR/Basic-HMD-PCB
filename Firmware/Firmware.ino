@@ -24,7 +24,7 @@
 //==========================================================================================================
 
 #define MPU9250_ADDRESS     0x68            //ADO 0
-//#define COMMON_CATHODE                    //uncomment this if your LED is common cathode
+#define COMMON_CATHODE                    //uncomment this if your LED is common cathode
 //#define SERIAL_DEBUG                      //uncomment this to unleash the wrath of the serial port
 
 //==========================================================================================================
@@ -171,6 +171,8 @@ bool newCtrlData = false;
 bool calDone;
 bool calPressed = false;
 
+bool priorityR = false;
+
 RF24 radio(9, 10); // CE, CSN on Blue Pill
 
 void setup() {
@@ -204,7 +206,7 @@ void setup() {
   radio.openReadingPipe(2, leftCtrlPipe);
   radio.openReadingPipe(1, rightCtrlPipe);
   radio.setAutoAck(false);
-  radio.setDataRate(RF24_1MBPS);
+  radio.setDataRate(RF24_2MBPS);
   radio.setPALevel(RF24_PA_LOW);
   radio.startListening();
 
@@ -291,7 +293,7 @@ void setup() {
 }
 
 void loop() {
-
+  
   if (!digitalRead(4)) {
     if (!calPressed) {
       calPressed = true;
@@ -308,6 +310,7 @@ void loop() {
   else {
     calPressed = false;
   }
+  
 
   uint8_t pipenum;
   updateMag();
@@ -327,30 +330,22 @@ void loop() {
   HMDRawData.MagY = (short)(mx * 5);
   HMDRawData.MagZ = (short)(-mz * 5);
 
-  Serial.print("ax: ");
-  Serial.println(ax);
-
   HID().SendReport(1, &HMDRawData, 63);
 
   if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
+    
     if (pipenum == 1) {
       radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
-      newCtrlData = true;
     }
     if (pipenum == 2) {
       radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
-      newCtrlData = true;
     }
     if (pipenum == 3) {
       radio.read(&HMDRawData.tracker1_QuatW, 27);      //recive all 3 trackers' data
     }
   }
-
-
-  if (newCtrlData) {
-    HID().SendReport(1, &ContData, 63);
-    newCtrlData = false;
-  }
+  
+  HID().SendReport(1, &ContData, 63);
 }
 
 void initMPU()
