@@ -12,10 +12,11 @@
   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <Wire.h>
 #include <SPI.h>
-#include <EEPROM.h>
 #include "RF24.h"
+
+#include <Wire.h>
+#include <EEPROM.h>
 #include "RegisterMap.h"
 #include "HID.h"
 
@@ -23,17 +24,20 @@
 //************************************ USER CONFIGURABLE STUFF HERE*****************************************
 //==========================================================================================================
 
-#define MPU9250_ADDRESS     0x68            //ADO 0
+#define MPU9250_ADDRESS     0x68          //ADO 0
 #define COMMON_CATHODE                    //uncomment this if your LED is common cathode
-//#define SERIAL_DEBUG                      //uncomment this to unleash the wrath of the serial port
+#define ENABLE_RF                         //comment this to disable RF capabilities.
+//#define SERIAL_DEBUG                    //uncomment this to unleash the wrath of the serial port
 
 //==========================================================================================================
 
+#ifdef ENABLE_RF
 const uint64_t rightCtrlPipe = 0xF0F0F0F0E1LL;
 const uint64_t leftCtrlPipe = 0xF0F0F0F0D2LL;
 const uint64_t trackerPipe = 0xF0F0F0F0C3LL;
+#endif
 
-#define CALPIN              4               
+#define CALPIN              4
 
 struct Calibration {
   int calDone;
@@ -200,6 +204,7 @@ void setup() {
   }
 #endif
 
+#ifdef ENABLE_RF
   radio.begin();
   radio.setPayloadSize(40);
   radio.openReadingPipe(3, trackerPipe);
@@ -209,6 +214,7 @@ void setup() {
   radio.setDataRate(RF24_2MBPS);
   radio.setPALevel(RF24_PA_LOW);
   radio.startListening();
+#endif
 
   Wire.begin();
 
@@ -237,6 +243,8 @@ void setup() {
         setColor(6);
         delay(200);
         setColor(0);
+        delay(200);
+        setColor(6);
         delay(1000);
       }
     }
@@ -256,6 +264,33 @@ void setup() {
       delay(1000);
     }
   }
+  
+#ifdef ENABLE_RF
+  if (!radio.isChipConnected())
+  {
+    Serial.println("NRF24L01 Module not detected!");
+    while (true)
+    {
+      setColor(0);
+      delay(200);
+      setColor(6);
+      delay(200);
+      setColor(0);
+      delay(200);
+      setColor(6);
+      delay(200);
+      setColor(0);
+      delay(200);
+      setColor(6);
+      delay(200);
+      setColor(0);
+      delay(200);
+      setColor(6);
+      delay(1000);
+    }
+  }
+#endif
+
   Serial.println("Loading calibration values from program memory");
   EEPROM.get(0, cal);
 
@@ -281,9 +316,8 @@ void setup() {
     cal.calDone = 99;
     EEPROM.put(0, cal);
     setColor(2);
-    delay(2000); 
+    delay(2000);
   }
-
 
 
   setColor(cal.ledColor);
@@ -293,7 +327,7 @@ void setup() {
 }
 
 void loop() {
-  
+
   if (!digitalRead(4)) {
     if (!calPressed) {
       calPressed = true;
@@ -310,7 +344,7 @@ void loop() {
   else {
     calPressed = false;
   }
-  
+
 
   uint8_t pipenum;
   updateMag();
@@ -332,8 +366,9 @@ void loop() {
 
   HID().SendReport(1, &HMDRawData, 63);
 
+#ifdef ENABLE_RF
   if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
-    
+
     if (pipenum == 1) {
       radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
     }
@@ -344,7 +379,8 @@ void loop() {
       radio.read(&HMDRawData.tracker1_QuatW, 27);      //recive all 3 trackers' data
     }
   }
-  
+#endif
+
   HID().SendReport(1, &ContData, 63);
 }
 

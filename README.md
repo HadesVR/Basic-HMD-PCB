@@ -95,4 +95,5 @@ If something's wrong with your board the tracking LED will flash different color
 | 1 short RED | Magnetic calibration values have not been set! you need to run the magnetic calibration before using this board! |
 | 2 short RED| IMU configuration error / IMU not detected. |
 | 3 short RED| Magnetometer configuration error / Magnetometer not detected. |
+| 4 short RED| NRF24L01 Module not detected. |
 | 1 short GREEN | New magnetic calibration data set, board restart required. |
