@@ -289,6 +289,9 @@ void setup() {
       delay(1000);
     }
   }
+  else{
+    Serial.println("NRF24L01 Module up and running!");
+  }
 #endif
 
   Serial.println("Loading calibration values from program memory");
@@ -327,7 +330,8 @@ void setup() {
 }
 
 void loop() {
-
+  bool newContData = false;
+  
   if (!digitalRead(4)) {
     if (!calPressed) {
       calPressed = true;
@@ -371,17 +375,20 @@ void loop() {
 
     if (pipenum == 1) {
       radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
+      newContData = true;
     }
     if (pipenum == 2) {
       radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
+      newContData = true;
     }
     if (pipenum == 3) {
       radio.read(&HMDRawData.tracker1_QuatW, 27);      //recive all 3 trackers' data
     }
   }
 #endif
-
-  HID().SendReport(1, &ContData, 63);
+  if(newContData){
+    HID().SendReport(1, &ContData, 63);
+  }
 }
 
 void initMPU()
