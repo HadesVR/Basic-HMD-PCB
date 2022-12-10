@@ -27,7 +27,7 @@ MPU9250 IMU;                                // IMU type
 #define COMMON_CATHODE                      // Uncomment this if your LED is common cathode
 #define EEPROM_CAL                          // Comment this if your MCU doesn't support EEPROM.
 #define USE_RF                              // Comment this to disalbe RF functionality.
-#define SERIAL_DEBUG                      // Uncomment this to make the serial port spicy.
+//#define SERIAL_DEBUG                      // Uncomment this to make the serial port spicy.
 
 #define TRANSPORT_TYPE             1        //1 = HID (default), 2 = UART
 #define TRANSPORT_SERIAL_PORT      Serial   // Must_not be same as SERIAL_DEBUG (if that is enabled)
