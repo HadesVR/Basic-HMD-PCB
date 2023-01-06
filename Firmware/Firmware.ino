@@ -200,6 +200,7 @@ struct ControllerPacket
   uint8_t Ctrl1_MIDDLE;
   uint8_t Ctrl1_RING;
   uint8_t Ctrl1_PINKY;
+  uint8_t Ctrl1_AnalogGrip;
   uint16_t Ctrl1_Data;
 
   int16_t Ctrl2_QuatW;
@@ -220,6 +221,7 @@ struct ControllerPacket
   uint8_t Ctrl2_MIDDLE;
   uint8_t Ctrl2_RING;
   uint8_t Ctrl2_PINKY;
+  uint8_t Ctrl2_AnalogGrip;
   uint16_t Ctrl2_Data;
 };
 
@@ -344,11 +346,11 @@ void loop()
   uint8_t pipenum;
   if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
     if (pipenum == 1) {
-      radio.read(&ContData.Ctrl1_QuatW, 28);        //receive right controller data
+      radio.read(&ContData.Ctrl1_QuatW, 29);        //receive right controller data
       newCtrlData = true;
     }
     if (pipenum == 2) {
-      radio.read(&ContData.Ctrl2_QuatW, 28);        //receive left controller data
+      radio.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
       newCtrlData = true;
     }
     if (pipenum == 3) {
@@ -368,12 +370,12 @@ void loop()
       if (ledColor > 6) {
         ledColor = 0;
       }
-      #ifdef SERIAL_DEBUG
+#ifdef SERIAL_DEBUG
       Serial.println("switched color and saved new value");
-      #endif
+#endif
       setColor(ledColor);
       EEPROM.put(200, ledColor);
-      delay(5);
+      delay(40);
     }
   }
   else {
@@ -507,23 +509,23 @@ void setColor(int index) {
   }
 }
 
-void debugPrint(String arg){
-  #ifdef SERIAL_DEBUG
+void debugPrint(String arg) {
+#ifdef SERIAL_DEBUG
   Serial.print(arg);
-  #endif
+#endif
 }
-void debugPrint(int arg){
-  #ifdef SERIAL_DEBUG
+void debugPrint(int arg) {
+#ifdef SERIAL_DEBUG
   Serial.print(arg);
-  #endif
+#endif
 }
-void debugPrintln(String arg){
-  #ifdef SERIAL_DEBUG
+void debugPrintln(String arg) {
+#ifdef SERIAL_DEBUG
   Serial.println(arg);
-  #endif
+#endif
 }
-void debugPrintln(int arg){
-  #ifdef SERIAL_DEBUG
+void debugPrintln(int arg) {
+#ifdef SERIAL_DEBUG
   Serial.println(arg);
-  #endif
+#endif
 }
