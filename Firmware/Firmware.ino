@@ -251,6 +251,9 @@ int ledColor = 0;
 bool calPressed = false;
 
 void setup() {
+  Wire.begin();
+  Wire.setClock(400000); //400khz clock
+
   pinMode(7, OUTPUT);
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
