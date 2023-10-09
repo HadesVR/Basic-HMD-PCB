@@ -172,6 +172,13 @@ bool serialOpened = false;
 bool calNotDone = false;
 
 void setup() {
+  //Setup Serial
+  Serial.begin(115200);
+    
+  //Setup HID SubDescriptor
+  static HIDSubDescriptor node(USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
+  HID().AppendDescriptor(&node);
+
   //Setup IO
   pinMode(7, OUTPUT);
   pinMode(5, OUTPUT);
@@ -184,12 +191,7 @@ void setup() {
   setColor(1);
   delay(500);
 
-  //Setup HID SubDescriptor
-  static HIDSubDescriptor node(USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
-  HID().AppendDescriptor(&node);
-
 #ifdef SERIAL_DEBUG
-  Serial.begin(38400);
   while (!Serial) ;
   debugPrintln("[INFO]\tSerial debug active");
 #endif
