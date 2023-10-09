@@ -13,54 +13,26 @@
 */
 
 #include <Wire.h>
+#include <EEPROM.h>
 #include <SPI.h>
 #include "RF24.h"
+#include "HID.h"
 #include "FastIMU.h"
 
 //==========================================================================================================
-//************************************ USER CONFIGURABLE STUFF HERE*****************************************
+//************************************ USER CONFIGURABLE STUFF HERE ****************************************
 //==========================================================================================================
 
 #define IMU_ADDRESS     0x68                // You can find it out by using the IMUIdentifier example
 MPU9250 IMU;                                // IMU type
-#define CALPIN              4               // Pin to start mag calibration at power on.
 #define COMMON_CATHODE                      // Uncomment this if your LED is common cathode
-#define EEPROM_CAL                          // Comment this if your MCU doesn't support EEPROM.
-#define USE_RF                              // Comment this to disalbe RF functionality.
+#define USE_RF                              // Comment this to disable RF functionality.
+#define IMU_GEOMTERY 0    //Change to your current IMU geomtery (check docs for a reference pic).
 //#define SERIAL_DEBUG                      // Uncomment this to make the serial port spicy.
 
-#define TRANSPORT_TYPE             1        //1 = HID (default), 2 = UART
-#define TRANSPORT_SERIAL_PORT      Serial   // Must_not be same as SERIAL_DEBUG (if that is enabled)
-#define TRANSPORT_SERIAL_BAUDRATE  230400
-
-//==========================================================================================================
-//************************************* Calibration stuff *************************************************
-//==========================================================================================================
-//eeprom-less mcu stuff, you don't need to touch these if you do the eeprom calibration
-calData calib =
-{ true,                   //data valid?
-  {0, 0, 0},              //Accel bias
-  {0, 0, 0},              //Gyro bias
-  {0, 0, 0},              //Mag bias
-  {1, 1, 1},              //Mag Scale
-};
-#ifdef EEPROM_CAL
-#include <EEPROM.h>
-#endif
 //==========================================================================================================
 //************************************ DATA TRANSPORT LAYER ************************************************
 //==========================================================================================================
-
-class DataTransport {
-  public:
-    virtual ~DataTransport() {}
-    virtual void setup() = 0;
-    virtual void sendPacket(const void* packet, int len);
-};
-
-#if TRANSPORT_TYPE == 1
-
-#include "HID.h"
 
 static const uint8_t USB_HID_Descriptor[] PROGMEM = {
 
@@ -71,70 +43,11 @@ static const uint8_t USB_HID_Descriptor[] PROGMEM = {
   0x26, 0xff, 0x00,   //   LOGICAL_MAXIMUM (255)
   0x85, 0x01,         //   REPORT_ID (1)
   0x75, 0x08,         //   REPORT_SIZE (16)
-
   0x95, 0x3f,         //   REPORT_COUNT (1)
-
   0x09, 0x00,         //   USAGE (Undefined)
   0x81, 0x02,         //   INPUT (Data,Var,Abs) - to the host
   0xc0
 };
-
-class HIDTransport : public DataTransport {
-  public:
-    void setup()
-    {
-      static HIDSubDescriptor node(USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
-      HID().AppendDescriptor(&node);
-    }
-
-    void sendPacket(const void* packet, int len)
-    {
-      HID().SendReport(1, packet, len);
-    }
-};
-
-#define TransportClass HIDTransport
-
-#elif TRANSPORT_TYPE == 2
-
-#define UART_MAGIC ((uint8_t)0xAA)
-
-class UARTTransport : public DataTransport {
-  public:
-    UARTTransport() : port(TRANSPORT_SERIAL_PORT) {}
-
-    void setup()
-    {
-      port.begin(TRANSPORT_SERIAL_BAUDRATE);
-      cnt = 0;
-    }
-
-    void sendPacket(const void* packet, int len)
-    {
-      // TODO: Check len < 256
-      const uint8_t dataLen = (uint8_t)len;
-
-      // We simply send <magic:1><length:1><data:length> where magic=0xAA, length=len and data=packet
-      // Adding a CRC might be a good idea later
-      port.write((uint8_t)UART_MAGIC);
-      port.write(cnt++);
-      port.write(dataLen + 1);
-      port.write((uint8_t)0x01); // Dummy report number (not really used)
-      port.write((const uint8_t*)packet, dataLen);
-    }
-
-  private:
-    uint8_t cnt;
-    HardwareSerial& port;
-};
-
-#define TransportClass UARTTransport
-
-#else
-#error "unsupported transport type: "
-#endif
-
-static TransportClass transport;
 
 //==========================================================================================================
 //************************************* Data packet stuff *************************************************
@@ -230,161 +143,231 @@ static ControllerPacket ContData;
 //==========================================================================================================
 //**************************************** RF Data stuff ***************************************************
 //==========================================================================================================
-#ifdef USE_RF
 const uint64_t rightCtrlPipe = 0xF0F0F0F0E1LL;
 const uint64_t leftCtrlPipe = 0xF0F0F0F0D2LL;
-const uint64_t trackerPipe = 0xF0F0F0F0C3LL;
 
-RF24 radio(9, 10); // CE, CSN on Blue Pill
+RF24 radio1(8, 10); // CE, CSN on radio 1
+RF24 radio2(A1, A2); // CE, CSN on radio 2
 
 bool newCtrlData = false;
-#endif
 //==========================================================================================================
 //**************************************** IMU variables ***************************************************
 //==========================================================================================================
 AccelData IMUAccel;
 GyroData IMUGyro;
 MagData IMUMag;
+calData calib = {0};
 //==========================================================================================================
+
+#define CALPIN  4
+#define CE2     A1
+#define CSN2    A2
+#define CE1     8
+#define CSN1    10
 
 int ledColor = 0;
 bool calPressed = false;
+bool revTwoBoard = false;
+bool serialOpened = false;
+bool calNotDone = false;
 
 void setup() {
-  Wire.begin();
-  Wire.setClock(400000); //400khz clock
-
+  //Setup IO
   pinMode(7, OUTPUT);
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
   pinMode(9, OUTPUT);
+  pinMode(A0, INPUT);
   pinMode(CALPIN, INPUT_PULLUP);
-  setColor(4);
-  delay(200);
-  //setup transport
-  transport.setup();
+
+  //turn on LED
+  setColor(1);
+  delay(500);
+
+  //Setup HID SubDescriptor
+  static HIDSubDescriptor node(USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
+  HID().AppendDescriptor(&node);
 
 #ifdef SERIAL_DEBUG
   Serial.begin(38400);
   while (!Serial) ;
+  debugPrintln("[INFO]\tSerial debug active");
 #endif
 
-  //setup IMU
+  //Check board revision
+  pinMode(A3, INPUT_PULLUP);
+  if (digitalRead(A3)) {
+    debugPrintln("[INFO]\tBoard revision: 1.X");
+    revTwoBoard = false;
+  }
+  else {
+    debugPrintln("[INFO]\tBoard revision: 2.X");
+    revTwoBoard = true;
+  }
+
+  //Set up RF radios
+#ifdef USE_RF
+  //start up radio 1
+  radio1.begin();
+  radio1.setPayloadSize(32);
+  radio1.setAutoAck(false);
+  radio1.setDataRate(RF24_2MBPS);
+  radio1.setPALevel(RF24_PA_LOW);
+  radio1.startListening();
+  //start up radio 2
+  if (revTwoBoard) {
+    radio2.begin();
+    radio2.setPayloadSize(32);
+    radio2.setAutoAck(false);
+    radio2.setDataRate(RF24_2MBPS);
+    radio2.setPALevel(RF24_PA_LOW);
+    radio2.startListening();
+  }
+  if (!radio1.isChipConnected())
+  {
+    debugPrintln("[ERROR]\tRadio 1 Not Found!");
+    errorBlink(1);    //Radio 1 is the main radio, shouldn't run without it.
+  }
+  else {
+    debugPrintln("[INFO]\tRadio 1 Initialized");
+    radio1.openReadingPipe(1, rightCtrlPipe);
+    if (!revTwoBoard) {
+      radio1.openReadingPipe(2, leftCtrlPipe);
+    }
+  }
+  if (revTwoBoard) {
+    if (!radio2.isChipConnected())
+    {
+      debugPrintln("[ERROR]\tRadio 2 Not Found!");
+      debugPrintln("[INFO]\tFalling back to single radio mode");
+      radio1.openReadingPipe(2, leftCtrlPipe);
+    }
+    else
+    {
+      debugPrintln("[INFO]\tRadio 2 Initialized");
+      radio2.openReadingPipe(1, leftCtrlPipe);
+    }
+  }
+#endif
+
+  //Start up I2C
+  Wire.begin();
+  Wire.setClock(400000); //400khz clock
+
+  //Initialize IMU
+  IMU.setIMUGeometry(IMU_GEOMTERY);
   int err = IMU.init(calib, IMU_ADDRESS);
   if (err != 0)
   {
-    debugPrint("IMU ERROR: ");
+    debugPrint("[ERROR]\tIMU ERROR: ");
     debugPrintln(err);
-    setColor(0);
-    while (true) ;
+    errorBlink(0);
   }
 
-#ifdef EEPROM_CAL
-  EEPROM.get(210, calib);
-  EEPROM.get(200, ledColor);
+  EEPROM.get(200, calib);
+  EEPROM.get(100, ledColor);
   if (ledColor > 6) {
     ledColor = 0;
   }
-  debugPrintln("Loaded Calibration from EEPROM!");
-  printCalibration();
-#endif
-  bool calDone = !calib.valid;                             //check if calibration values are on flash
-  while (calDone)
-  {
-    delay(1000);
-    Serial.print("Calibration not done!");
-    if (!digitalRead(CALPIN))
-    {
-      calDone = false;
-    }
-  }
-  if (!digitalRead(CALPIN)) {                                        //enter calibration mode
-    calibrateIMU();
-#ifdef EEPROM_CAL
-    debugPrintln("Writing values to EEPROM!");
-    EEPROM.put(210, calib);
-#endif
-    delay(3000);
-  }
+  setColor(ledColor);
+  debugPrintln("[INFO]\tLoaded Calibration from EEPROM!");
 
-#ifndef EEPROM_CAL
-  debugPrintln("Loading calibration values from program memory");
+#ifdef SERIAL_DEBUG
   printCalibration();
 #endif
 
-#ifdef USE_RF
-  //setup rf
-  radio.begin();
-  radio.setPayloadSize(40);
-  radio.openReadingPipe(3, trackerPipe);
-  radio.openReadingPipe(2, leftCtrlPipe);
-  radio.openReadingPipe(1, rightCtrlPipe);
-  radio.setAutoAck(false);
-  radio.setDataRate(RF24_2MBPS);
-  radio.setPALevel(RF24_PA_LOW);
-  radio.startListening();
-  if (!radio.isChipConnected())
-  {
-    debugPrintln("NRF24L01 Module not detected!");
-    setColor(0);
-    while (true) ;
-  }
-  else
-  {
-    debugPrintln("NRF24L01 Module up and running!");
-  }
-#endif
   IMU.init(calib, IMU_ADDRESS);     //Reinitialize with correct calibration values
   HMDRawData.PacketID = 3;
   ContData.PacketID = 2;
-  debugPrintln("IMU Initialized.");
-  setColor(2);
-  delay(1000);
-  setColor(ledColor);
+  debugPrintln("[INFO]\tIMU Initialized.");
+  int t;
+  EEPROM.get(120, t);
+  if (!(t == 99)) {
+    debugPrintln("[INFO]\tCalibration not valid!");
+    calNotDone = true;
+  }
 }
 
 void loop()
 {
-#ifdef USE_RF
-  uint8_t pipenum;
-  if (radio.available(&pipenum)) {                  //thanks SimLeek for this idea!
-    if (pipenum == 1) {
-      radio.read(&ContData.Ctrl1_QuatW, 29);        //receive right controller data
-      newCtrlData = true;
-    }
-    if (pipenum == 2) {
-      radio.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
-      newCtrlData = true;
-    }
-    if (pipenum == 3) {
-      radio.read(&HMDRawData.tracker1_QuatW, 27);   //recive all 3 trackers' data
-    }
+  //check for calibration data.
+  while (calNotDone && !Serial) {
+    setColor(6);
+    delay(500);
+    setColor(1);
+    delay(500);
   }
-  if (newCtrlData) {
-    transport.sendPacket(&ContData, 63);
-    newCtrlData = false;
-  }
-#endif
 
-  if (!digitalRead(CALPIN)) {
-    if (!calPressed) {
-      calPressed = true;
-      ledColor++;
-      if (ledColor > 6) {
-        ledColor = 0;
+  //run Serial
+  if (Serial) {
+    if (!serialOpened) {
+      if (calNotDone) {
+        Serial.println("[INFO]\tNo calibration data detected, do you want to enter calibration mode? (y/n)");
+      } else {
+        Serial.println("[INFO]\tSerial monitor open, do you want to enter calibration mode? (y/n)");
       }
-#ifdef SERIAL_DEBUG
-      Serial.println("switched color and saved new value");
-#endif
+    }
+    serialOpened = true;
+    if (Serial.read() == 'y') {
+      setColor(7);
+      calib = { 0 };                    //this looks important
+      IMU.init(calib, IMU_ADDRESS);
+      Serial.println("[INFO]\tCalibrating IMU... Keep headset still on a flat and level surface...");
+      delay(10000);
+      IMU.calibrateAccelGyro(&calib);
+      IMU.init(calib, IMU_ADDRESS);
+      Serial.println("[INFO]\tAccelerometer and Gyroscope calibrated!");
+      if (IMU.hasMagnetometer()) {
+        delay(1000);
+        Serial.println("[INFO]\tMagnetometer calibration: move IMU in figure 8 pattern until done.");
+        delay(5000);
+        IMU.calibrateMag(&calib);
+        Serial.println("[INFO]\tMagnetic calibration done!");
+      }
+      Serial.println("[INFO]\tIMU Calibration complete!");
+      Serial.println("[INFO]\tAccel biases X/Y/Z: ");
+      Serial.print("[INFO]\t");
+      Serial.print(calib.accelBias[0]);
+      Serial.print(", ");
+      Serial.print(calib.accelBias[1]);
+      Serial.print(", ");
+      Serial.println(calib.accelBias[2]);
+      Serial.println("[INFO]\tGyro biases X/Y/Z: ");
+      Serial.print("[INFO]\t");
+      Serial.print(calib.gyroBias[0]);
+      Serial.print(", ");
+      Serial.print(calib.gyroBias[1]);
+      Serial.print(", ");
+      Serial.println(calib.gyroBias[2]);
+      if (IMU.hasMagnetometer()) {
+        Serial.println("[INFO]\tMag biases X/Y/Z: ");
+        Serial.print("[INFO]\t");
+        Serial.print(calib.magBias[0]);
+        Serial.print(", ");
+        Serial.print(calib.magBias[1]);
+        Serial.print(", ");
+        Serial.println(calib.magBias[2]);
+        Serial.println("[INFO]\tMag Scale X/Y/Z: ");
+        Serial.print("[INFO]\t");
+        Serial.print(calib.magScale[0]);
+        Serial.print(", ");
+        Serial.print(calib.magScale[1]);
+        Serial.print(", ");
+        Serial.println(calib.magScale[2]);
+      }
+      setColor(4);
+      Serial.println("[INFO]\tSaving Calibration values to EEPROM!");
+      EEPROM.put(200, calib);
+      EEPROM.put(120, 99);
+      delay(1000);
+      Serial.println("[INFO]\tYou can now close the Serial monitor.");
+      delay(5000);
+      IMU.init(calib, IMU_ADDRESS);
       setColor(ledColor);
-      EEPROM.put(200, ledColor);
-      delay(40);
     }
   }
-  else {
-    calPressed = false;
-  }
 
+  //run IMU
   IMU.update();
   IMU.getAccel(&IMUAccel);
   IMU.getGyro(&IMUGyro);
@@ -409,53 +392,74 @@ void loop()
   HMDRawData.GyroY = (short)(IMUGyro.gyroY * 16);
   HMDRawData.GyroZ = (short)(IMUGyro.gyroZ * 16);
 
-  transport.sendPacket(&HMDRawData, 63);
-
-}
-
-void calibrateIMU()
-{
-  if (IMU.hasMagnetometer()) {
-    setColor(1);
-    Serial.println("Magnetic calibration mode.");
-    Serial.println("Move IMU in figure 8 until done.");
-    delay(3000);
-    IMU.calibrateMag(&calib);
-    Serial.println("Magnetic calibration complete!");
-    delay(1000);
+  //run RF
+  uint8_t pipenum;
+  if (radio1.available(&pipenum)) {                  //thanks SimLeek for this idea!
+    if (pipenum == 1) {
+      radio1.read(&ContData.Ctrl1_QuatW, 29);        //receive right controller data
+      newCtrlData = true;
+    }
+    if (pipenum == 2) {
+      radio1.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
+      newCtrlData = true;
+    }
   }
-  setColor(5);
-  Serial.println("Accelerometer and gyroscope calibration mode.");
-  Serial.println("Keep IMU completely still on flat and level surface.");
-  delay(8000);
-  IMU.calibrateAccelGyro(&calib);
-  Serial.println("Accel & Gyro calibration complete!");
-  calib.valid = true;
-  printCalibration();
-  setColor(4);
+  if (radio2.available(&pipenum)) {
+    radio2.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
+    newCtrlData = true;
+  }
+  if (newCtrlData) {
+    HID().SendReport(1, &ContData, 63);
+    newCtrlData = false;
+  }
+
+  //run LED
+  if (!digitalRead(CALPIN)) {
+    if (!calPressed) {
+      calPressed = true;
+      ledColor++;
+      if (ledColor > 6) {
+        ledColor = 0;
+      }
+      debugPrintln("[INFO]\tswitched LED color and saved new value");
+      setColor(ledColor);
+      EEPROM.put(100, ledColor);
+      delay(40);
+    }
+  }
+  else {
+    calPressed = false;
+  }
+
+  HID().SendReport(1, &HMDRawData, 63);
 }
+
 void printCalibration()
 {
-  Serial.println("Accel biases X/Y/Z: ");
+  Serial.println("[INFO]\tAccel biases X/Y/Z: ");
+  Serial.print("[INFO]\t");
   Serial.print(calib.accelBias[0]);
   Serial.print(", ");
   Serial.print(calib.accelBias[1]);
   Serial.print(", ");
   Serial.println(calib.accelBias[2]);
-  Serial.println("Gyro biases X/Y/Z: ");
+  Serial.println("[INFO]\tGyro biases X/Y/Z: ");
+  Serial.print("[INFO]\t");
   Serial.print(calib.gyroBias[0]);
   Serial.print(", ");
   Serial.print(calib.gyroBias[1]);
   Serial.print(", ");
   Serial.println(calib.gyroBias[2]);
   if (IMU.hasMagnetometer()) {
-    Serial.println("Mag biases X/Y/Z: ");
+    Serial.println("[INFO]\tMag biases X/Y/Z: ");
+    Serial.print("[INFO]\t");
     Serial.print(calib.magBias[0]);
     Serial.print(", ");
     Serial.print(calib.magBias[1]);
     Serial.print(", ");
     Serial.println(calib.magBias[2]);
-    Serial.println("Mag Scale X/Y/Z: ");
+    Serial.println("[INFO]\tMag Scale X/Y/Z: ");
+    Serial.print("[INFO]\t");
     Serial.print(calib.magScale[0]);
     Serial.print(", ");
     Serial.print(calib.magScale[1]);
@@ -467,47 +471,46 @@ void printCalibration()
 void ledControl(int red, int green, int blue)
 {
 #ifdef COMMON_CATHODE
-
   digitalWrite(7, LOW);
   digitalWrite(5, red);
   digitalWrite(6, green);
   digitalWrite(9, blue);
-
 #else
-
   digitalWrite(7, HIGH);
   digitalWrite(5, !red);
   digitalWrite(6, !green);
   digitalWrite(9, !blue);
-
 #endif
 }
 
 void setColor(int index) {
   switch (index) {
     case 0:
-      ledControl(1, 0, 0);      //red
+      ledControl(1, 0, 0);    //red
       break;
     case 1:
       ledControl(1, 1, 0);    //yellow
       break;
     case 2:
-      ledControl(0, 1, 0);      //green
+      ledControl(0, 1, 0);    //green
       break;
     case 3:
       ledControl(0, 1, 1);    //cyan
       break;
     case 4:
-      ledControl(0, 0, 1);      //blue
+      ledControl(0, 0, 1);    //blue
       break;
     case 5:
-      ledControl(1, 0, 1);    //purple?
+      ledControl(1, 0, 1);    //magenta
       break;
     case 6:
       ledControl(0, 0, 0);    //off
       break;
+    case 7:
+      ledControl(1, 1, 1);    //white
+      break;
     default:
-      ledControl(1, 0, 0);      //red again
+      ledControl(1, 0, 0);    //red again
       break;
   }
 }
@@ -531,4 +534,15 @@ void debugPrintln(int arg) {
 #ifdef SERIAL_DEBUG
   Serial.println(arg);
 #endif
+}
+
+void errorBlink(int color)
+{
+  while (true)
+  {
+    setColor(color);
+    delay(500);
+    setColor(6);
+    delay(500);
+  }
 }
