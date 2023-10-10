@@ -189,7 +189,6 @@ void setup() {
 
   //turn on LED
   setColor(1);
-  delay(500);
 
 #ifdef SERIAL_DEBUG
   while (!Serial) ;
@@ -287,6 +286,7 @@ void setup() {
   if (!(t == 99)) {
     debugPrintln("[INFO]\tCalibration not valid!");
     calNotDone = true;
+    delay(500);
   }
 }
 
@@ -399,15 +399,18 @@ void loop()
   if (radio1.available(&pipenum)) {                  //thanks SimLeek for this idea!
     if (pipenum == 1) {
       radio1.read(&ContData.Ctrl1_QuatW, 29);        //receive right controller data
+      //debugPrintln("RX 1, Right Controller!");
       newCtrlData = true;
     }
     if (pipenum == 2) {
       radio1.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
+      //debugPrintln("RX 1, Left Controller!");
       newCtrlData = true;
     }
   }
-  if (radio2.available(&pipenum)) {
+  if (radio2.available(&pipenum) && revTwoBoard) {
     radio2.read(&ContData.Ctrl2_QuatW, 29);        //receive left controller data
+    //debugPrintln("RX 2, Left controller!");
     newCtrlData = true;
   }
   if (newCtrlData) {
@@ -432,7 +435,6 @@ void loop()
   else {
     calPressed = false;
   }
-
   HID().SendReport(1, &HMDRawData, 63);
 }
 
@@ -468,7 +470,6 @@ void printCalibration()
     Serial.print(", ");
     Serial.println(calib.magScale[2]);
   }
-  delay(5000);
 }
 void ledControl(int red, int green, int blue)
 {
