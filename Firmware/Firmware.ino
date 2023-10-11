@@ -27,8 +27,9 @@
 MPU9250 IMU;                                // IMU type
 #define COMMON_CATHODE                      // Uncomment this if your LED is common cathode
 #define USE_RF                              // Comment this to disable RF functionality.
-#define IMU_GEOMTERY 0    //Change to your current IMU geomtery (check docs for a reference pic).
-//#define SERIAL_DEBUG                      // Uncomment this to make the serial port spicy.
+#define IMU_GEOMTERY 6                      // Change to your current IMU geomtery (check FastIMU docs for a reference pic).
+#define CALIBRATE_FLAT                      // If left uncommented accelerometer/gyro calibration must be done with the flat side of the board pointing down.
+//#define SERIAL_DEBUG                        // Uncomment this to make the serial port spicy.
 
 //==========================================================================================================
 //************************************ DATA TRANSPORT LAYER ************************************************
@@ -174,7 +175,7 @@ bool calNotDone = false;
 void setup() {
   //Setup Serial
   Serial.begin(115200);
-    
+
   //Setup HID SubDescriptor
   static HIDSubDescriptor node(USB_HID_Descriptor, sizeof(USB_HID_Descriptor));
   HID().AppendDescriptor(&node);
@@ -188,7 +189,7 @@ void setup() {
   pinMode(CALPIN, INPUT_PULLUP);
 
   //turn on LED
-  setColor(1);
+  setColor(7);
 
 #ifdef SERIAL_DEBUG
   while (!Serial) ;
@@ -264,42 +265,42 @@ void setup() {
     debugPrintln(err);
     errorBlink(0);
   }
+  debugPrintln("[INFO]\tIMU Initialized.");
 
-  EEPROM.get(200, calib);
   EEPROM.get(100, ledColor);
   if (ledColor > 6) {
     ledColor = 0;
   }
   setColor(ledColor);
-  debugPrintln("[INFO]\tLoaded Calibration from EEPROM!");
 
-#ifdef SERIAL_DEBUG
-  printCalibration();
-#endif
-
-  IMU.init(calib, IMU_ADDRESS);     //Reinitialize with correct calibration values
   HMDRawData.PacketID = 3;
   ContData.PacketID = 2;
-  debugPrintln("[INFO]\tIMU Initialized.");
+
   int t;
-  EEPROM.get(120, t);
+  EEPROM.get(125, t);
   if (!(t == 99)) {
     debugPrintln("[INFO]\tCalibration not valid!");
     calNotDone = true;
-    delay(500);
+    while (!Serial) {
+      setColor(6);
+      delay(500);
+      setColor(7);
+      delay(500);
+    }
+  }
+  else {
+    //calibration is valid
+    EEPROM.get(200, calib);
+    IMU.init(calib, IMU_ADDRESS);     //Reinitialize with correct calibration values
+    debugPrintln("[INFO]\tLoaded Calibration from EEPROM!");
+#ifdef SERIAL_DEBUG
+    printCalibration();
+#endif
   }
 }
 
 void loop()
 {
-  //check for calibration data.
-  while (calNotDone && !Serial) {
-    setColor(6);
-    delay(500);
-    setColor(1);
-    delay(500);
-  }
-
   //run Serial
   if (Serial) {
     if (!serialOpened) {
@@ -313,6 +314,9 @@ void loop()
     if (Serial.read() == 'y') {
       setColor(7);
       calib = { 0 };                    //this looks important
+#ifdef CALIBRATE_FLAT
+      IMU.setIMUGeometry(0);
+#endif
       IMU.init(calib, IMU_ADDRESS);
       Serial.println("[INFO]\tCalibrating IMU... Keep headset still on a flat and level surface...");
       delay(10000);
@@ -360,10 +364,11 @@ void loop()
       setColor(4);
       Serial.println("[INFO]\tSaving Calibration values to EEPROM!");
       EEPROM.put(200, calib);
-      EEPROM.put(120, 99);
+      EEPROM.put(125, 99);
       delay(1000);
       Serial.println("[INFO]\tYou can now close the Serial monitor.");
       delay(5000);
+      IMU.setIMUGeometry(IMU_GEOMTERY);
       IMU.init(calib, IMU_ADDRESS);
       setColor(ledColor);
     }
