@@ -1,14 +1,16 @@
 # HadesVR Basic HMD 
 
-The HadesVR Basic HMD is a PCB that helps you convert any "Phone VR" headset into a PC VR headset. It's included with the [Wand controller pcbs](https://github.com/HadesVR/Wand-Controller) as a kit to get you started or you can have it made on its own with the included gerber files.
+The HadesVR Basic HMD is a PCB that helps you convert any "Phone VR" headset into a PC VR headset. It's intended to be used with the [Wand controller pcbs](https://github.com/HadesVR/Wand-Controller) as a kit to get you started, however it can be used standalone or with other DIY controllers.
 
 The PCB addds support for all the electronics required to connect to a PC, get rotation data from the headset and get controller and tracker data wirelessly in a 100x35mm board with no SMD components.
 
-It uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be replaced by something like a BNO085 for better results if you're feeling like modifying the code a little), and an NRF24L01 to receive data from controllers and trackers. It also has hardware support for an RGB LED to use with a ping pong ball for 6dof tracking using PSMoveService.
+Revision 2 of the board comes with a few improvements, namely more filtering for the 3,3v rail, support for 3.3v only IMU's, optional dual RF modules for better RF performance and better mounting holes. All while keeping the board simple and easy to build by a beginner.
 
-You can get the HMD boards made professionally on [PCBWay](https://www.pcbway.com/setinvite.aspx?inviteid=398979) for just 5$ + shipping since the board design conforms to their 5$ deal for a 100mmx100mm board. And you can even get a 5$ off bonus if you're signing up for the first time which means you'd only be paying for shipping. 
+The new Revision 2 firmware also adds support for easy Serial calibration, just plug in your board, open the serial monitor and follow the steps on the screen to calibrate. This new firmware can detect if the board is a Rev 1 board or if it's a Rev 2 board and configure itself accordingly, meaning it's fully backwards compatible with Rev 1 boards.
 
-You can also get HMD + Controller boards in one order for $27 (or $22 with the new user bonus) + shipping if you plan on building the HMD and the [Wand controllers](https://github.com/HadesVR/Wand-Controller). Those board files are on the Wand controller repo.
+The Basic HMD PCB uses an Arduino Pro Micro as it's core, an MPU9250 as IMU (though it can be replaced by something like a BNO085 for better results if you're feeling like modifying the code a little), and an NRF24L01 to receive data from controllers and trackers. It also has hardware support for an RGB LED to use with a ping pong ball for 6dof tracking using PSMoveService.
+
+Do note that any IMU supported by the [FastIMU](https://github.com/LiquidCGS/FastIMU) library is supported, however it is strongly recommended that an IMU with a built in magnetometer is used for the best experience. 
 
 ![1](img/1.png)
 
@@ -17,10 +19,10 @@ You can also get HMD + Controller boards in one order for $27 (or $22 with the n
 | Component | Purpose | Notes | Amount |
 | --------- | ----------- | ----- | ------ |
 | Arduino Pro Micro* | Used to interface with PC through HID | **Not** an Arduino nano or a pro mini, those can't do USB HID. | 1 |
-| MPU9250**   | Used to gather rotation data from the headset | The IMU should sit flat against the pcb, this means you'll need to remove the black spacers on the pin headers after soldering them to the IMU. | 1 | 
-| NRF24L01  | Used to receive wireless data from controllers / trackers | - | 1 | 
+| IMU**   | Used to gather rotation data from the headset | The IMU should sit flat against the pcb, this means you'll need to remove the black spacers on the pin headers after soldering them to the IMU. | 1 | 
+| NRF24L01***  | Used to receive wireless data from controllers / trackers | - | 1/2 | 
 | HT7533 voltage regulator | Used to regulate voltage for the IMU and RF receiver | HT7333 or MCP1700-3302E are also compatible. The board is designed for the TO-92 package of both of them. | 1 |
-| 100nF capacitor | Used to smooth out the input and output regulator voltage. | - | 2 | 
+| 470nF capacitor | Used to smooth out the input and output regulator voltage. | - | 4 | 
 | 5mm RGB LED | Used for 6dof tracking | Common anode or common cathode are both supported. | 1 |
 | 6x6 tact switch| Used to enter magnetic calibration mode | - | 1 |
 | 120Ω Resistor | Used to limit the current for the green and blue colors of the LED | 1/4w | 2 |
@@ -31,6 +33,8 @@ You can also get HMD + Controller boards in one order for $27 (or $22 with the n
 *⚠️ Not an Arduino Micro either, not only will it not fit, it has a completly different pinout!!!! you need an **Arduino Pro Micro** for this build.
 
 **Any 3.3v IMU with that same pinout will work as long as it's supported by the [FastIMU](https://github.com/LiquidCGS/FastIMU) library, which was made mainly for HadesVR.
+
+***Dual NRF24L01's are recommended, each one in charge of receiving the data for one controller, that way latency is kept to a minimum, however the board *can with a single one* if the secondary NRF24L01 is not found on startup.
 
 ## Building the board
 
@@ -55,16 +59,18 @@ You will also need the [FastIMU](https://github.com/LiquidCGS/FastIMU) library i
 You can download both required libraries using the Library manager from within the Arduino IDE. 
 
 * Open "Firmware.ino" which is situated inside the Calibration folder inside the firmware folder with the arduino IDE.
+* Set up your IMU address and IMU type. if you're unsure of the address or type you can use the IMUIdentifier example sketch provided with the FastIMU library.
 * if your LED is Common cathode you'll need to uncomment `#define COMMON_CATHODE` for it to work, if it's Common anode you won't need to change anything.
+* Set up your IMU geometry if it's different than the default 
+* If you're gonna calibrate the board for the first time I recommend calibrating it "flat", so leave `#define CALIBRATE_FLAT` uncommented. This means the bottom of the board must be flat and paralell against the ground when calibrating. if your board is mounted vertically to a headset you should comment this line.
 * Select "Arduino Leonardo" in the boards menu.
 * Plug in your HMD board and select the COM port your Arduino Pro Micro is in (might come up as Arduino Leonardo).
 * Click upload and wait for the upload to be done.
-* Unplug the board and hold down the calibration button while plugging it back in, the LED should light up blue and then yellow if you configured it properly
-* the yellow led is your prompt to wave the board in a figure 8 pattern away from any electronics to calibrate the magnetometer
-* Once done, the LED will turn purple, this is your prompt to put your board on a flat, level surface and hold it completely still until the gyroscope and accelerometer are done calibrating.
-* Once done, the values will be saved to EEPROM.  If you need to recalibrate the board, simply restart it while holding down the Calibration button.
+* LED should light up White and stay blinking. This means there is no calibration data stored on the EEPROM.
+* Open the serial monitor and follow the steps to calibrate the accelerometer/gyro and magnetometer if you have one.
+* Once done, the LED will turn blue, this is your prompt to close the serial monitor as the IMU calibration has finished, the values will be saved to EEPROM.  If you need to recalibrate the board, simply restart the board and open the serial monitor again.
 
-If your view is crooked or too drifty you might need to calibrate your magnetometer, accelerometer and gyroscope again, to do that simply hold down the calibration button with the board off and then plug it in. This will put it into calibration mode.
+If your view is crooked or too drifty you might need to calibrate your magnetometer, accelerometer and gyroscope again, to do that simply open the Serial monitor and follow the instructions!
 
 Once you have the firmware.ino sketch uploaded to the board and you've done all calibration procedures you can press the button to change the tracking color of the ball. I recomended you either use green blue or red.
 
@@ -85,12 +91,10 @@ Once done, you'll get values like these and then all you have to do is load them
 
 
 ## Color codes
-If something's wrong with your board the tracking LED will turn a few different colors:
+If something's wrong with your board the tracking LED will turn a few different colors. You can uncomment `#define SERIAL_DEBUG` to see the startup process in more detail:
 
 | LED pulses | Description |
 | ------------- | ----------- |
-| RED | Error connecting with the IMU or error connecting with the nrf module, enable SERIAL_DEBUG and look at serial monitor to know which one |
-| BLUE | Board is initializing, just wait |
-| YELLOW | Magnetic calibration mode, wave your device in a figure 8 pattern until done. |
-| MAGENTA | Accelerometer/Gyroscope calibration mode, set your IMU in a level surface and keep it completely still until done. |
-| GREEN briefly | Board initialization complete. |
+| Blinking YELLOW | Error connecting to the Main NRF module. |
+| Blinking RED | Error initializing IMU |
+| Blinking WHITE | Calibration data is invalid, must redo calibration |
