@@ -38,6 +38,8 @@ Do note that any IMU supported by the [FastIMU](https://github.com/LiquidCGS/Fas
 
 ## Building the board
 
+### ⚠️If you've got a Rev 2.1 board, you need to solder the voltage regulator in the *opposite direction* to what is on the silkscreen, this is due to an error with the footprint in that specific hardware version. Rev 2.2 boards fix this mistake.
+
 The board only has a few components, they all go on the top layer and can be soldered in any order though you might find it easier to leave the calibration tact switch for last.
 
 The IMU should be mounted as flat against the board as possible to minimize an offset angle, to do this you will have to remove the black plastic separator from the pin headers:
